@@ -14,63 +14,40 @@ PROJECT_DIR=$(dirname $THIS)
 . "$PROJECT_DIR/variables"
 
 # Todays date in ISO-8601 format:
-# ------------------------------------------------------------------------------
 DAY0=$(date -I)
 
 # Timestamp
-# ------------------------------------------------------------------------------
 TIMESTAMP=$(date '+%Y-%m-%d at %H:%M:%S')
 
 # Yesterdays date in ISO-8601 format:
-# ------------------------------------------------------------------------------
 DAY1=$(date -I -d "1 day ago")
 
-# The source directory: this should contain a symlink to Apache doc root.
-# ------------------------------------------------------------------------------
-SRC="/home/${SERVERNAME}backup/source/"
-
-# The directory that holds dumped databases.
-# ------------------------------------------------------------------------------
-DB_DUMPS_PATH="${SRC}sql"
-
-# The Directory that holds backups
-# ------------------------------------------------------------------------------
-BACKUP_PATH="/home/${SERVERNAME}backup/backup/"
-
 # The target directory
-# ------------------------------------------------------------------------------
-TRG="${BACKUP_PATH}$DAY0"
+TRG="${BACKUP_PATH}/$DAY0"
 
 # The link destination directory.
-# ------------------------------------------------------------------------------
-LNK="${BACKUP_PATH}$DAY1"
+LNK="${BACKUP_PATH}/$DAY1"
 
 # Get list of databases, but not 'Database' or 'information_schema'
-# ------------------------------------------------------------------------------
 DATABASES=$(mysql --user=$MYSQL_USER --password=$MYSQL_PASSWD -e "SHOW DATABASES;" | grep -Ev "(Database|information_schema)")
 
 # Default for the mysqldump report.
-# ------------------------------------------------------------------------------
 DUMPFAIL=false
 
 # Remove previously dumped databases from the source directory.
-# ------------------------------------------------------------------------------
 rm $DB_DUMPS_PATH/*
 
 # Set up log.
-# ------------------------------------------------------------------------------
 echo "Database backup report. ${TIMESTAMP}" > $DB_DUMPS_PATH/DB_LOG
 echo "=======================================" >> $DB_DUMPS_PATH/DB_LOG
 
 # Create dumps for each database.
-# ------------------------------------------------------------------------------
 for DB in $DATABASES
 do
 
     mysqldump -v --user=$MYSQL_USER --password=$MYSQL_PASSWD --single-transaction --log-error=$DB_DUMPS_PATH/$DB.log --host=$HOST $DB > $DB_DUMPS_PATH/$DB.sql
 
     # Log the result of mysqldump.
-    # --------------------------------------------------------------------------
     if [[ $? -eq 0 ]]
 
     then
@@ -84,34 +61,27 @@ do
 done
 
 # The rsync options: follow the symlinks to make a hard backup.
-# ------------------------------------------------------------------------------
 OPT=(-avL --progress --exclude='*.zip' --exclude='debian.cnf' --delete --link-dest=$LNK)
 
 # Execute the backup.
-# ------------------------------------------------------------------------------
-rsync "${OPT[@]}" $SRC $TRG
+rsync "${OPT[@]}" $SRC/ $TRG
 
 # Log Results.
-# ------------------------------------------------------------------------------
 if [[ $? -gt 0 ]]
 then
     # In case of rsync FAILURE.
-    # ----------------------------------------------------------------------------
     echo "ERROR. rsync didn't complete the nightly backup: ${TIMESTAMP}" >> /var/log/server-backup.log
     echo "There was an error in the nightly backup for ${SERVERNAME}: ${TIMESTAMP}. See /var/log/server-backup.log."| mail -s "Backup Error, ${SERVERNAME}" ${ADMIN_EMAIL}
 else
     # In case of rsync SUCCESS.
-    # ----------------------------------------------------------------------------
     if [[ false == $DUMPFAIL ]]
 
     # In case of rsync & mysqldump SUCCESS.
-    # --------------------------------------------------------------------------
     then
         echo "SUCCESS. Backup made on: ${TIMESTAMP}" >> /var/log/server-backup.log
         echo -e "${TIMESTAMP}: Server ${SERVERNAME} successfully ran a local backup.\nBoth rsync & mysqldump report success."| mail -s "Backup Success, ${SERVERNAME}" info@carawebs.com
 
         # Partial Success: rsync worked but there was at least one mysqldump error
-        # ----------------------------------------------------------------------
     else
         echo "PARTIAL SUCCESS. File backup (rsync) was successful, but mysqldump reports errors: ${TIMESTAMP}" >> /var/log/server-backup.log
         echo -e "${TIMESTAMP}: Server ${SERVERNAME} ran a local backup.\nFile backup reports success, however mysqldump reports at least one problem.\nCheck "| mail -s "Backup Success, ${SERVERNAME}" info@carawebs.com
@@ -121,6 +91,5 @@ else
 fi
 
 # Remove old backups
-# ------------------------------------------------------------------------------
 cd $BACKUP_PATH
 ls -cpr $BACKUP_PATH | head -n -$RETAIN_NUMBER | xargs -d '\n' rm -rf

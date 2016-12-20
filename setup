@@ -1,0 +1,59 @@
+#!/bin/bash
+#
+# Set up the incremental backup. Run as sudo.
+# ------------------------------------------------------------------------------
+# Set directory
+THIS=$(readlink -f ${BASH_SOURCE[0]})
+PROJECT_DIR=$(dirname $THIS)
+
+# Include dependencies
+. "$PROJECT_DIR/variables"
+
+function setup() {
+
+    # echo ${BACKUP_PATH}
+    # echo ${SRC}
+    # echo ${CONFIG}
+    # echo ${DB_DUMPS_PATH}
+
+    # Make the Backup directory
+    mkdir -p ${BACKUP_PATH}
+
+    # Make the source directory
+    mkdir -p ${SRC}
+
+    # Make the config directory if it does not exist.
+    mkdir -p ${CONFIG}
+
+    # Make the target for mysqldump
+    mkdir -p ${DB_DUMPS_PATH}
+
+    # Add a symlink to site files into the source directory.
+    ln -s /var/www/html ${SRC}
+
+    # Symlink Apache config files into source/config (including vhosts setup)
+    ln -s /etc/apache2 ${CONFIG}
+
+    # Symlink MySQL config files
+    ln -s /etc/mysql ${CONFIG}
+
+    # Make the backup script executable
+    chmod +x $PROJECT_DIR/server-backup
+
+    # Symlink MySQL config files
+    ln -s $PROJECT_DIR/server-backup /usr/local/sbin
+
+}
+
+echo ""
+echo "This script sets up backup directories and necessary symlinks."
+echo "You only need to run this script ONCE. It's probably a good idea to read the readme!"
+echo "Before running, server specific variables must be set in ${PROJECT_DIR}/variables."
+echo "If you haven't done this, stop and do so before continuing."
+echo ""
+read -p "Do you want to continue (y/n)?" CONT
+if [ "$CONT" = "y" ]; then
+    setup;
+else
+  echo "Cancelled.";
+fi
