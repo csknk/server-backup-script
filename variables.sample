@@ -15,7 +15,7 @@ ADMIN_EMAIL="info@example.com"
 SERVERNAME="servername"
 
 # ==============================================================================
-# You probably don't want to change this.
+# You probably don't want to change below this line.
 # ==============================================================================
 
 # The source directory: this should contain a symlink to Apache doc root.

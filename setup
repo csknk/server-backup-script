@@ -55,5 +55,5 @@ read -p "Do you want to continue (y/n)?" CONT
 if [ "$CONT" = "y" ]; then
     setup;
 else
-  echo "Cancelled.";
+    echo "Cancelled.";
 fi
