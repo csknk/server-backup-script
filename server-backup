@@ -79,12 +79,12 @@ else
     # In case of rsync & mysqldump SUCCESS.
     then
         echo "SUCCESS. Backup made on: ${TIMESTAMP}" >> /var/log/server-backup.log
-        echo -e "${TIMESTAMP}: Server ${SERVERNAME} successfully ran a local backup.\nBoth rsync & mysqldump report success."| mail -s "Backup Success, ${SERVERNAME}" info@carawebs.com
+        echo -e "${TIMESTAMP}: Server ${SERVERNAME} successfully ran a local backup.\nBoth rsync & mysqldump report success."| mail -s "Backup Success, ${SERVERNAME}" ${ADMIN_EMAIL}
 
         # Partial Success: rsync worked but there was at least one mysqldump error
     else
         echo "PARTIAL SUCCESS. File backup (rsync) was successful, but mysqldump reports errors: ${TIMESTAMP}" >> /var/log/server-backup.log
-        echo -e "${TIMESTAMP}: Server ${SERVERNAME} ran a local backup.\nFile backup reports success, however mysqldump reports at least one problem.\nCheck "| mail -s "Backup Success, ${SERVERNAME}" info@carawebs.com
+        echo -e "${TIMESTAMP}: Server ${SERVERNAME} ran a local backup.\nFile backup reports success, however mysqldump reports at least one problem.\nCheck "| mail -s "Backup Success, ${SERVERNAME}" ${ADMIN_EMAIL}
 
     fi
 
