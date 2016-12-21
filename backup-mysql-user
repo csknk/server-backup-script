@@ -1,10 +1,16 @@
-#!/bin/bash
 # Create a MySQL user with limited privileges for backup purposes.
+# You only need to run this once when setting up the backup script.
+# @TODO Generate a password and pre-populate the relevant field in `variables`
 # ==============================================================================
-# Enter into a BASH shell:
+
 mysql -u root -p << EOF
-CREATE USER 'backup_user'@'localhost' IDENTIFIED BY 'nicelongpassword';
+CREATE USER 'backup_user'@'localhost' IDENTIFIED BY 'password-here';
 GRANT SELECT, SHOW VIEW, RELOAD, REPLICATION CLIENT, EVENT, TRIGGER ON *.* TO 'backup_user'@'localhost';
 FLUSH PRIVILEGES;
 SHOW GRANTS FOR 'backup_user'@'localhost';
+EOF
+
+# Verify that the user has been added:
+mysql -u root -p << EOF
+SELECT User FROM mysql.user;
 EOF

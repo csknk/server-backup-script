@@ -14,6 +14,8 @@ ADMIN_EMAIL="info@example.com"
 # There should be a user called $SERVERNAMEbackup
 SERVERNAME="servername"
 
+RETAIN_NUMBER=10
+
 # ==============================================================================
 # You probably don't want to change below this line.
 # ==============================================================================
