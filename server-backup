@@ -61,7 +61,7 @@ do
 done
 
 # The rsync options: follow the symlinks to make a hard backup.
-OPT=(-avL --progress --exclude='*.zip' --exclude='debian.cnf' --delete --link-dest=$LNK)
+OPT=(-aqL --progress --exclude='*.zip' --exclude='debian.cnf' --delete --link-dest=$LNK)
 
 # Execute the backup.
 rsync "${OPT[@]}" $SRC/ $TRG
