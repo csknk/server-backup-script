@@ -10,12 +10,6 @@ PROJECT_DIR=$(dirname $THIS)
 . "$PROJECT_DIR/variables"
 
 function setup() {
-
-    # echo ${BACKUP_PATH}
-    # echo ${SRC}
-    # echo ${CONFIG}
-    # echo ${DB_DUMPS_PATH}
-
     # Make the Backup directory
     mkdir -p ${BACKUP_PATH}
 
@@ -42,7 +36,6 @@ function setup() {
 
     # Symlink MySQL config files
     ln -s $PROJECT_DIR/server-backup /usr/local/sbin
-
 }
 
 echo ""

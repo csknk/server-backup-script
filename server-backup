@@ -44,20 +44,15 @@ echo "=======================================" >> $DB_DUMPS_PATH/DB_LOG
 # Create dumps for each database.
 for DB in $DATABASES
 do
-
     mysqldump -v --user=$MYSQL_USER --password=$MYSQL_PASSWD --single-transaction --log-error=$DB_DUMPS_PATH/$DB.log --host=$HOST $DB > $DB_DUMPS_PATH/$DB.sql
-
     # Log the result of mysqldump.
     if [[ $? -eq 0 ]]
-
     then
         echo -e "Mysqldump created ${DB}.sql" >> $DB_DUMPS_PATH/DB_LOG
     else
         echo "Mysqldump encountered a problem backing up ${DB}. Look in ${DB_DUMPS_PATH}/${DB}.log for information." >> $DB_DUMPS_PATH/DB_LOG
         $DUMPFAIL=true
-
     fi
-
 done
 
 # The rsync options: follow the symlinks to make a hard backup.
@@ -85,9 +80,7 @@ else
     else
         echo "PARTIAL SUCCESS. File backup (rsync) was successful, but mysqldump reports errors: ${TIMESTAMP}" >> /var/log/server-backup.log
         echo -e "${TIMESTAMP}: Server ${SERVERNAME} ran a local backup.\nFile backup reports success, however mysqldump reports at least one problem.\nCheck "| mail -s "Backup Success, ${SERVERNAME}" ${ADMIN_EMAIL}
-
     fi
-
 fi
 
 # Remove old backups
