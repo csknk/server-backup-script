@@ -1,0 +1,12 @@
+#!/bin/bash
+
+# Project specific Variables
+# ------------------------------------------------------------------------------
+# Credentials for a MySQL/MariaDB backup user. This user should have limited capabilities.
+MYSQL_USER="backup_user"
+MYSQL_PASSWD="backupuserpassword"
+
+# Database hostname (usually localhost if database server is local)
+ADMIN_EMAIL="info@example.com"
+RETAIN_NUMBER=10
+

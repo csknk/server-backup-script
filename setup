@@ -3,50 +3,103 @@
 # Set up the incremental backup. Run as sudo.
 # ------------------------------------------------------------------------------
 # Set directory
-THIS=$(readlink -f ${BASH_SOURCE[0]})
-PROJECT_DIR=$(dirname $THIS)
+THIS=$(readlink -f "${BASH_SOURCE[0]}")
+PROJECT_DIR=$(dirname "${THIS}")
+CONFIG_FILE="${PROJECT_DIR}/server-backup-config"
+SERVERNAME=$(hostname -s)
 
-# Include dependencies
-. "$PROJECT_DIR/variables"
+# Include project specific dependencies
+[[ ! -f "${CONFIG_FILE}" ]] && { echo "Config file missing at ${CONFIG_FILE}"; exit 1; }
+# shellcheck disable=SC1090
+. "${CONFIG_FILE}"
 
-function setup() {
-    # Make the Backup directory
-    mkdir -p ${BACKUP_PATH}
+BACKUP_USERNAME="${SERVERNAME}backup"
 
-    # Make the source directory
-    mkdir -p ${SRC}
+# The source directory: this should contain a symlink to Apache doc root.
+PARENT_DIR="/home/${BACKUP_USERNAME}"
 
-    # Make the config directory if it does not exist.
-    mkdir -p ${CONFIG}
+# The Directory that holds backups
+BACKUP_PATH="${PARENT_DIR}/backup"
 
-    # Make the target for mysqldump
-    mkdir -p ${DB_DUMPS_PATH}
+# Directory for the source files: to be backed up
+SRC="${PARENT_DIR}/source"
 
-    # Add a symlink to site files into the source directory.
-    ln -s /var/www/html ${SRC}
+# The directory that holds dumped databases.
+DB_DUMPS_PATH="${SRC}/sql"
 
-    # Symlink Apache config files into source/config (including vhosts setup)
-    ln -s /etc/apache2 ${CONFIG}
+# The directory holding source config files
+CONFIG="${SRC}/config"
 
-    # Symlink MySQL config files
-    ln -s /etc/mysql ${CONFIG}
+function create_backup_user {
+	[[ $(getent passwd "${BACKUP_USERNAME}") ]] && { echo "${BACKUP_USERNAME} exists."; return 0; }
 
-    # Make the backup script executable
-    chmod +x $PROJECT_DIR/server-backup
-
-    # Symlink MySQL config files
-    ln -s $PROJECT_DIR/server-backup /usr/local/sbin
+	local match=0
+	local new_pass=
+	local conf=
+	while [ "${match}" -eq "0" ]; do
+		read -srp "Enter new UNIX password: " new_pass
+		printf "\n"
+		read -srp "Retype new UNIX password: " conf
+		printf "\n"
+		if [[ "${new_pass}" != "${conf}" ]]; then
+			echo "Passwords do not match. Try again."
+		else
+			match=1
+		fi
+	done
+	adduser --disabled-password "${BACKUP_USERNAME}"
+	echo "${BACKUP_USERNAME}:${new_pass}" | chpasswd
+	usermod -aG sudo "${BACKUP_USERNAME}"
 }
 
-echo ""
-echo "This script sets up backup directories and necessary symlinks."
-echo "You only need to run this script ONCE. It's probably a good idea to read the readme!"
-echo "Before running, server specific variables must be set in ${PROJECT_DIR}/variables."
-echo "If you haven't done this, stop and do so before continuing."
-echo ""
-read -p "Do you want to continue (y/n)?" CONT
-if [ "$CONT" = "y" ]; then
-    setup;
-else
-    echo "Cancelled.";
-fi
+function create_mysql_backup_user {
+	sudo mysql -u root -e "
+	CREATE USER '${MYSQL_USER}'@'localhost' IDENTIFIED BY '${MYSQL_PASSWD}';
+	GRANT SELECT, SHOW VIEW, RELOAD, REPLICATION CLIENT, EVENT, TRIGGER ON *.* TO '${MYSQL_USER}'@'localhost';
+	FLUSH PRIVILEGES;
+	SHOW GRANTS FOR '${MYSQL_USER}'@localhost';
+	"
+}
+
+function setup_dirs {
+	# Make the Backup directory
+	mkdir -p "${BACKUP_PATH}"
+
+	# Make the source directory
+	mkdir -p "${SRC}"
+
+	# Make the config directory if it does not exist.
+	mkdir -p "${CONFIG}"
+
+	# Make the target for mysqldump
+	mkdir -p "${DB_DUMPS_PATH}"
+
+	# Add a symlink to site files into the source directory.
+	ln -s /var/www/html "${SRC}"
+
+	# Symlink Apache config files into source/config (including vhosts setup)
+	ln -s /etc/apache2 "${CONFIG}"
+
+	# Symlink MySQL config files
+	ln -s /etc/mysql "${CONFIG}"
+
+	# Make the backup script executable
+	chmod +x "${PROJECT_DIR}"/server-backup
+
+	# Symlink MySQL config files
+	ln -s "${PROJECT_DIR}"/server-backup /usr/local/sbin
+}
+
+echo "
+This script sets up backup directories and necessary symlinks.
+You only need to run this script ONCE. It's probably a good idea to read the readme!
+Before running, server specific variables must be set in ${PROJECT_DIR}/variables.
+If you haven't done this, stop and do so before continuing.
+"
+
+read -rp "Do you want to proceed? [y/N]?" choice
+[[ ! "${choice}" =~ ^(yes|YES|y|Y)$ ]] && { echo "Exiting."; exit 1; }
+
+create_backup_user
+create_mysql_backup_user
+setup_dirs
