@@ -5,7 +5,7 @@
 # Set directory
 THIS=$(readlink -f "${BASH_SOURCE[0]}")
 PROJECT_DIR=$(dirname "${THIS}")
-CONFIG_FILE="${PROJECT_DIR}/server-backup-config"
+CONFIG_FILE="${PROJECT_DIR}/server-backup.conf"
 SERVERNAME=$(hostname -s)
 
 # Include project specific dependencies
@@ -14,20 +14,10 @@ SERVERNAME=$(hostname -s)
 . "${CONFIG_FILE}"
 
 BACKUP_USERNAME="${SERVERNAME}backup"
-
-# The source directory: this should contain a symlink to Apache doc root.
 PARENT_DIR="/home/${BACKUP_USERNAME}"
-
-# The Directory that holds backups
 BACKUP_PATH="${PARENT_DIR}/backup"
-
-# Directory for the source files: to be backed up
 SRC="${PARENT_DIR}/source"
-
-# The directory that holds dumped databases.
 DB_DUMPS_PATH="${SRC}/sql"
-
-# The directory holding source config files
 CONFIG="${SRC}/config"
 
 function create_backup_user {
@@ -57,7 +47,7 @@ function create_mysql_backup_user {
 	CREATE USER '${MYSQL_USER}'@'localhost' IDENTIFIED BY '${MYSQL_PASSWD}';
 	GRANT SELECT, SHOW VIEW, RELOAD, REPLICATION CLIENT, EVENT, TRIGGER ON *.* TO '${MYSQL_USER}'@'localhost';
 	FLUSH PRIVILEGES;
-	SHOW GRANTS FOR '${MYSQL_USER}'@localhost';
+	SHOW GRANTS FOR '${MYSQL_USER}'@'localhost';
 	"
 }
 
@@ -101,5 +91,5 @@ read -rp "Do you want to proceed? [y/N]?" choice
 [[ ! "${choice}" =~ ^(yes|YES|y|Y)$ ]] && { echo "Exiting."; exit 1; }
 
 create_backup_user
-create_mysql_backup_user
+#create_mysql_backup_user
 setup_dirs

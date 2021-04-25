@@ -1,3 +1,4 @@
+server-backup.conf
 variables
 test
 server-delete-backups.sh

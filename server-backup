@@ -12,7 +12,7 @@
 # Set directory
 THIS=$(readlink -f "${BASH_SOURCE[0]}")
 PROJECT_DIR=$(dirname "${THIS}")
-CONFIG_FILE="${PROJECT_DIR}/server-backup-config"
+CONFIG_FILE="${PROJECT_DIR}/server-backup.conf"
 SERVERNAME=$(hostname -s)
 HOST=localhost
 DAY0=$(date -I)
@@ -32,16 +32,19 @@ LNK="${BACKUP_PATH}/$DAY1"
 # Include project specific dependencies: required for MySQL credentials
 [[ ! -f "${CONFIG_FILE}" ]] && { echo "Config file missing at ${CONFIG_FILE}"; exit 2; }
 # shellcheck disable=SC1090
-. "$PROJECT_DIR/variables"
+. "${CONFIG_FILE}"
 
 # Get list of databases, but not 'Database' or 'information_schema'
-get_db_opts=("--user=${MYSQL_USER}" "--password=${MYSQL_PASSWD}" -e "SHOW DATABASES;") 
-DATABASES=$(mysql "${get_db_opts[@]}" | grep -Ev "(Database|information_schema)")
+#get_db_opts=("--user=${MYSQL_USER}" "--password=${MYSQL_PASSWD}" -e "SHOW DATABASES;") 
+get_db_opts=("--login-path=backup" -e "SHOW DATABASES;") 
+DATABASES=$(mysql "${get_db_opts[@]}" | grep -Ev "(Database|information_schema|performance_schema)")
 
 # Remove previously dumped databases from the source directory.
 if [[ -n "${DB_DUMPS}" ]] && [[ -d "${DB_DUMPS}" ]]; then
-	rm "${DB_DUMPS}"/*.sql
-	rm "${DB_DUMPS}"/*.log
+	shopt -s nullglob
+	rm -f "${DB_DUMPS}"/*.sql
+	rm -f "${DB_DUMPS}"/*.log
+	shopt -u nullglob
 else 
 	echo "The variable \$DB_DUMPS is not set."
 	exit 3
@@ -57,9 +60,9 @@ function run_backup {
 	# We do not use --log-error since this option logs EVERYTHING, not just errors.
 	# If required, consider adding "--log-error=${DB_DUMPS}/${db}".log and 
 	SQL_OPTS=(
+		"--login-path=backup"
+		--no-tablespaces
 		-v
-		"--user=${MYSQL_USER}"
-		"--password=${MYSQL_PASSWD}"
 		--single-transaction
 		"--host=${HOST}"
 	)
@@ -70,12 +73,12 @@ function run_backup {
 		# shellcheck disable=SC2181
 		if [[ $? -eq 0 ]]
 		then
-			echo -e "Mysqldump created ${DB}.sql" >> "${DB_DUMPS}"/db-backup.log
+			echo -e "Mysqldump created ${db}.sql" >> "${DB_DUMPS}"/db-backup.log
 		else
 			echo "
-			Mysqldump encountered a problem backing up ${DB}. \
+			Mysqldump encountered a problem backing up ${db}. \
 			" >> "${DB_DUMPS}"/error-mysqldump.log
-			"${dumpfail}"=true
+			dumpfail=true
 		fi
 	done
 	# The rsync options: follow the symlinks to make a hard backup.
@@ -89,7 +92,7 @@ function run_backup {
 		# In case of rsync FAILURE.
 		local error_msg="ERROR. rsync on ${SERVERNAME} didn't complete the backup: at ${TIMESTAMP}"
 		echo "${error_msg}" >> /var/log/server-backup.log
-		email_to_admin "${error_msg}" "Backup Error, ${SERVERNAME}" "${ADMIN_EMAIL}"
+		email_to_admin "${error_msg}" "[${SERVERNAME}] Backup Error"
 	else
 		# In case of rsync SUCCESS.
 		if [[ false == "${dumpfail}" ]]
@@ -97,14 +100,12 @@ function run_backup {
 			# rsync & mysqldump SUCCESS.
 			local success_msg="SUCCESS. ${SERVERNAME} backup made on: ${TIMESTAMP}"
 			echo "${success_msg}" >> /var/log/server-backup.log
-			email_to_admin "${success_msg}" "Backup Success, ${SERVERNAME}"
+			email_to_admin "${success_msg}" "[${SERVERNAME}] Backup Success"
 		else
 			# Partial Success: rsync worked but there was at least one mysqldump error
-			local partial_msg="
-			PARTIAL SUCCESS, backup ${SERVERNAME} on ${TIMESTAMP}. \
-				File backup (rsync) was successful, mysqldump reports errors: ${TIMESTAMP}"
+			local partial_msg="PARTIAL SUCCESS, backup ${SERVERNAME} ${TIMESTAMP}. Rsync success, mysqldump errors"
 			echo "${partial_msg}" >> /var/log/server-backup.log
-			email_to_admin "${partial_msg}" "Partial Backup Success, ${SERVERNAME}"
+			email_to_admin "${partial_msg}" "[${SERVERNAME}]: Partial Backup Success"
 		fi
 	fi
 
@@ -115,5 +116,7 @@ function run_backup {
 }
 
 function email_to_admin {
-	echo -e "$1" | mail -s "$2"
+	echo -e "$1" | mail -aFrom:"${SENDER}" -s "${2}" "${ADMIN_EMAIL}"
 }
+
+run_backup
